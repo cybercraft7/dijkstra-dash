@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Dijkstra Dash — Supply Chain Terminal</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="page-inner">
+
+<h1>Dijkstra Dash — Supply Chain Terminal</h1>
+<p class="sub">Warehouse dashboard, upgrades, and a preview of future multi-city expansion.</p>
+
+<!-- ===================== Resource bar ===================== -->
+<div class="resource-bar">
+  <div class="resource-chip gold">💰 <span id="resFunds">₹0</span></div>
+  <div class="resource-chip">📅 Day <span id="resDay">1</span></div>
+  <div class="resource-chip">🏭 Lv.<span id="resLevel">1</span></div>
+  <div class="resource-chip">⚡ ₹<span id="resOpex">0</span>/day</div>
+  <div class="spacer"></div>
+</div>
+
+<div id="warehouseSection">
+<div class="layout">
+  <div class="grid-board">
+    <div class="grid-board-heading">
+      <h2>Interactive 12 × 12 City Grid</h2>
+      <span>START → DELIVERY</span>
+    </div>
+    <canvas id="canvas" width="720" height="720"></canvas>
+  </div>
+
+  <div class="panel">
+    <div id="phaseBadge" class="badge" style="background:var(--navy)">WAREHOUSE</div>
+
+    <!-- ===================== DASHBOARD ===================== -->
+    <div id="dashboardControls">
+      <h2>Warehouse Status</h2>
+      <div id="eventBanner" class="event-banner normal"></div>
+      <div class="dash-stat-row"><span>Funds</span><b id="dashFunds">₹0</b></div>
+      <div class="dash-stat-row"><span>Day</span><b id="dashDay">1</b></div>
+      <div class="dash-stat-row"><span>Warehouse Level</span><b id="dashLevel">1</b></div>
+      <div class="dash-stat-row"><span>Daily OPEX</span><b id="dashOpex">₹0/day</b></div>
+
+      <h2 style="margin-top:16px">Inventory</h2>
+      <div id="inventoryList"></div>
+
+      <h2 style="margin-top:16px">Start a Supply Run</h2>
+      <div class="instructions">Pick which raw material to gather. Higher route efficiency = more units collected.</div>
+      <button class="material-btn cream" data-material="cream">Cream <span>Run →</span></button>
+      <button class="material-btn sugar" data-material="sugar">Sugar <span>Run →</span></button>
+      <button class="material-btn dryice" data-material="dryice">Dry Ice <span>Run →</span></button>
+
+      <button id="btnResetSave">Reset Save</button>
+    </div>
+
+    <!-- ===================== PLANNING ===================== -->
+    <div id="planningControls" style="display:none">
+      <h2 id="planningHeading">1. Plan your route</h2>
+      <div class="instructions">Click any open tile to place your start. Route around walls and costly traffic to reach the goal.</div>
+      <button id="btnPlanDijkstra">Preview with Dijkstra</button>
+      <button id="btnPlanAstar">Preview with A*</button>
+      <button id="btnLock">Lock Route &amp; Start Run</button>
+      <button id="btnRandomize">Randomize Path</button>
+      <div class="search-legend">
+        <span><i class="search-swatch" style="background:#18B981"></i>Start</span>
+        <span><i class="search-swatch" style="background:#F34566"></i>Goal</span>
+        <span><i class="search-swatch" style="background:#FFD39A"></i>Traffic +5</span>
+        <span><i class="search-swatch" style="background:#87949A"></i>Wall</span>
+        <span><i class="search-swatch" style="background:#1E293B"></i>Other tiles</span>
+        <span><i class="search-swatch" style="background:#0F9B91"></i>Chosen route</span>
+      </div>
+    </div>
+
+    <!-- ===================== RUN ===================== -->
+    <div id="runControls" style="display:none">
+      <h2>2. Run it</h2>
+      <div class="instructions">
+        After the 3-second countdown, use the arrow keys or WASD to move one tile at a time.<br/>
+        The gold marker shows the next planned tile. Leaving the route triggers a live recalculation and traffic penalty.
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <button id="btnRestart">Back to Warehouse</button>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+</div><!-- /#warehouseSection -->
+
+<!-- ===================== UPGRADES TAB ===================== -->
+<div id="upgradesSection" style="display:none">
+  <div class="panel" style="max-width:520px">
+    <h2>Warehouse Upgrades</h2>
+    <div class="callout-bubble">
+      📦 Upgrade your warehouse to increase storage capacity for every material. Bigger warehouses
+      cost more to run each day (OPEX) — a real trade-off, not a pure upgrade.
+    </div>
+
+    <div class="upgrade-card">
+      <div class="upgrade-card-header">
+        <div class="lvl-badge">Lv.<span id="upLevel">1</span></div>
+        <div class="title">Storage Capacity</div>
+      </div>
+      <div class="capacity-track"><div class="capacity-track-fill" id="upCapacityFill" style="width:0%"></div></div>
+      <div class="cost-row"><span>Current capacity (per material)</span><b id="upCurrentCap">10</b></div>
+      <div class="cost-row"><span>Next level capacity</span><b id="upNextCap">20</b></div>
+      <div class="cost-row"><span>Upgrade cost</span><b id="upCost">₹150</b></div>
+      <div class="cost-row"><span>Daily OPEX after upgrade</span><b id="upNextOpex">₹28/day</b></div>
+      <button id="btnUpgrade2" style="background:var(--gold); color:#3a2900; margin-top:10px;">Upgrade Warehouse</button>
+    </div>
+
+    <div class="instructions">Funds available: <b id="upFundsAvail" style="color:var(--gold)">₹0</b></div>
+  </div>
+</div>
+
+<!-- ===================== CITIES TAB (concept preview) ===================== -->
+<div id="citiesSection" style="display:none">
+  <div class="panel" style="max-width:640px">
+    <h2>Choose Your City</h2>
+    <div class="callout-bubble">
+      🗺️ "Choose your first city! As your supply network grows, new cities will unlock, ready to
+      be expanded into." — this screen previews future multi-city expansion using a real map.
+    </div>
+    <div id="cityMap"></div>
+    <div class="city-name-row">
+      <span class="name">🏙️ New York — Home City</span>
+      <span>🥛 🍬 🧊</span>
+    </div>
+    <button id="btnCityComingSoon" style="background:#454d80;">Coming Soon — Multi-City Expansion</button>
+    <div class="concept-note">
+      🔒 <b>This is a visual concept preview, not a playable feature.</b> The colored overlay simulates
+      claimed vs. unclaimed supply territory — the real mechanic (isolated city economies, freight
+      links between cities) is future roadmap, scoped out of the current build on purpose to protect
+      the deadline for the core game.
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TRANSFER TAB (Digital Shipping Manifesto) ===================== -->
+<div id="transferSection" style="display:none">
+  <div class="panel" style="max-width:560px">
+    <h2>Cross-Device Save Transfer</h2>
+    <div class="callout-bubble">
+      📤 The "Digital Shipping Manifesto" — export your entire warehouse state as a text code,
+      then paste it into Dijkstra Dash on another device to pick up exactly where you left off.
+      No account, no server — the code itself <i>is</i> your save.
+    </div>
+
+    <div class="upgrade-card">
+      <div class="upgrade-card-header"><div class="title">📦 Export This Save</div></div>
+      <button id="btnExport" style="background:var(--teal);">Generate Export Code</button>
+      <textarea id="exportOutput" readonly rows="4"
+        style="width:100%; resize:vertical; background:#0B0E22; color:var(--dimtext); border:1px solid var(--darkline); border-radius:6px; padding:8px; font-family:monospace; font-size:11px; display:none;"></textarea>
+      <button id="btnCopyExport" style="background:#454d80; display:none;">Copy to Clipboard</button>
+      <div id="exportStatus" class="instructions"></div>
+    </div>
+
+    <div class="upgrade-card">
+      <div class="upgrade-card-header"><div class="title">📥 Import a Save</div></div>
+      <div class="instructions" style="margin-top:0">Paste a code generated on another device. This will overwrite your current progress here.</div>
+      <textarea id="importInput" rows="4" placeholder="Paste your export code here..."
+        style="width:100%; resize:vertical; background:#0B0E22; color:white; border:1px solid var(--darkline); border-radius:6px; padding:8px; font-family:monospace; font-size:11px; margin-bottom:10px;"></textarea>
+      <button id="btnImport" style="background:var(--gold); color:#3a2900;">Load This Save</button>
+      <div id="importStatus" class="instructions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== BOTTOM NAV ===================== -->
+<div class="bottom-nav">
+  <button class="nav-btn active" data-tab="warehouse"><span class="nav-icon">🏠</span>Warehouse</button>
+  <button class="nav-btn" data-tab="upgrades"><span class="nav-icon">📦</span>Upgrades</button>
+  <button class="nav-btn" data-tab="cities"><span class="nav-icon">🗺️</span>Cities</button>
+  <button class="nav-btn" data-tab="transfer"><span class="nav-icon">📤</span>Transfer</button>
+</div>
+
+</div><!-- /.page-inner -->
+
+<div id="gameToast" class="game-toast" role="status" aria-live="polite"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
