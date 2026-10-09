@@ -12,6 +12,7 @@ let trafficCells = [];
 let costs = [];
 let baseCellCost = 1;
 
+
 function randomizeCosts(min = 1, max = 6, start = START_NODE, trafficCount) {
   baseCellCost = min;
   costs = Array.from({ length: ROWS }, () =>
@@ -40,6 +41,7 @@ function randomizeCosts(min = 1, max = 6, start = START_NODE, trafficCount) {
 }
 randomizeCosts(1, 6);
 
+
 function shuffle(items) {
   for (let i = items.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -47,6 +49,7 @@ function shuffle(items) {
   }
   return items;
 }
+
 
 function randomizeWalls(start, wallCount) {
   const protectedCells = new Set([
@@ -71,6 +74,7 @@ function randomizeWalls(start, wallCount) {
   wallCells = new Set(candidates.slice(0, Math.min(count, candidates.length)));
 }
 
+
 function key(r, c) { return `${r},${c}`; }
 function neighbors(grid, r, c, blocked) {
   const out = [];
@@ -82,6 +86,7 @@ function neighbors(grid, r, c, blocked) {
   }
   return out;
 }
+
 
 function dijkstra(grid, start, end, blocked) {
   const dist = new Map(), prev = new Map(), visited = new Set();
@@ -110,6 +115,7 @@ function dijkstra(grid, start, end, blocked) {
   }
   return { path: reconstruct(prev, start, end), cost: dist.get(endKey), explored };
 }
+
 
 function astar(grid, start, end, blocked) {
   const g = new Map(), f = new Map(), prev = new Map();
@@ -142,6 +148,7 @@ function astar(grid, start, end, blocked) {
   return { path: [], cost: Infinity, explored };
 }
 
+
 function reconstruct(prev, start, end) {
   const sk = key(start.r, start.c), ek = key(end.r, end.c);
   if (sk === ek) return [start];
@@ -155,6 +162,7 @@ function reconstruct(prev, start, end) {
   }
   return out[0] && key(out[0].r, out[0].c) === sk ? out : [];
 }
+
 
 const workerSrc = `
   ${key.toString()}
@@ -208,22 +216,27 @@ const MONO = "'JetBrains Mono', ui-monospace, monospace";
 
 const MAX_WAREHOUSE_LEVEL = 10;
 
+
 function dailyOpex(s) {
   return 20 + (s.warehouseLevel - 1) * 8;
 }
+
 
 function costToReach(level) {
   const step = level - 1;
   return 200 * step * (step + 1);
 }
 
+
 function upgradeCost(s) {
   if (s.warehouseLevel >= MAX_WAREHOUSE_LEVEL) return 0;
   return costToReach(s.warehouseLevel + 1);
 }
 
+
 const EVENT_TYPES = ["normal", "traffic", "shortage"];
 const EVENT_WEIGHTS = [0.5, 0.25, 0.25];
+
 
 function rollDailyEvent() {
   const r = Math.random();
@@ -240,11 +253,13 @@ function rollDailyEvent() {
   return { type: chosen };
 }
 
+
 function eventDescription(ev) {
   if (ev.type === "traffic") return "Traffic jam. Every open tile costs more today.";
   if (ev.type === "shortage") return `${MATERIALS[ev.material].label} is short. That run yields half the units.`;
   return "Clear roads. Normal yields today.";
 }
+
 
 function defaultState() {
   return {
@@ -257,6 +272,7 @@ function defaultState() {
     activeCity: "newyork",
   };
 }
+
 
 function sanitizeState(parsed) {
   const base = defaultState();
@@ -284,19 +300,23 @@ function sanitizeState(parsed) {
   };
 }
 
+
 function clampInt(value, fallback, min, max) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.round(n)));
 }
 
+
 function cityById(id) {
   return CITIES.find((city) => city.id === id) || CITIES[0];
 }
 
+
 function activeCity() {
   return cityById(state.activeCity);
 }
+
 
 function loadState() {
   try {
@@ -309,27 +329,33 @@ function loadState() {
   }
 }
 
+
 function saveState() {
   localStorage.setItem(SAVE_KEY, JSON.stringify(state));
 }
+
 
 function encodeSave(s) {
   const json = JSON.stringify(s);
   return btoa(unescape(encodeURIComponent(json)));
 }
 
+
 function decodeSave(code) {
   const json = decodeURIComponent(escape(atob(code.trim())));
   return JSON.parse(json);
 }
 
+
 function capacityFor(level = state.warehouseLevel) {
   return 10 * level;
 }
 
+
 let state = loadState();
 let currentMaterial = null;
 let todayEvent = { type: "normal" };
+
 
 function setText(id, value) {
   const el = document.getElementById(id);
@@ -341,12 +367,14 @@ function setText(id, value) {
   el.classList.add("tick");
 }
 
+
 function renderMetrics() {
   setText("resFunds", `₹${state.funds}`);
   setText("resDay", state.day);
   setText("resLevel", state.warehouseLevel);
   setText("resOpex", `₹${dailyOpex(state)}`);
 }
+
 
 function renderDashboard() {
   renderMetrics();
@@ -387,6 +415,7 @@ function renderDashboard() {
   renderManifest();
 }
 
+
 function renderManifest() {
   const el = document.getElementById("manifestBody");
   if (!el) return;
@@ -401,6 +430,7 @@ function renderManifest() {
   ];
   el.innerHTML = `<dl class="ledger">${rows.map(([name, value]) => `<div><dt>${name}</dt><dd>${value}</dd></div>`).join("")}</dl><p class="note">Today: ${eventDescription(todayEvent)}</p>`;
 }
+
 
 function renderUpgradesTab() {
   const currentCap = capacityFor();
@@ -465,6 +495,7 @@ function renderUpgradesTab() {
   }
 }
 
+
 function startMaterial(id) {
   if (phase !== "dashboard" || activeTab !== "warehouse") return;
   currentMaterial = id;
@@ -474,8 +505,10 @@ function startMaterial(id) {
   if (full) showToast(`${info.label} is full. This run still pays, but new units will not fit.`);
 }
 
+
 let resetArmed = false;
 let resetTimer = null;
+
 function bindDisclosure(buttonId, boxId) {
   const button = document.getElementById(buttonId);
   const box = document.getElementById(boxId);
@@ -495,6 +528,7 @@ function bindDisclosure(buttonId, boxId) {
 bindDisclosure("btnInstructions", "runInstructions");
 bindDisclosure("btnPayRules", "payRules");
 bindDisclosure("btnTransferGuide", "transferGuide");
+
 
 document.getElementById("btnResetSave").onclick = () => {
   const btn = document.getElementById("btnResetSave");
@@ -522,6 +556,7 @@ document.getElementById("btnResetSave").onclick = () => {
   showToast("Progress reset");
 };
 
+
 document.getElementById("btnUpgrade2").onclick = () => {
   if (state.warehouseLevel >= MAX_WAREHOUSE_LEVEL) return;
   const cost = upgradeCost(state);
@@ -534,6 +569,7 @@ document.getElementById("btnUpgrade2").onclick = () => {
   showToast(`Warehouse is now level ${state.warehouseLevel}`);
 };
 
+
 document.getElementById("btnExport").onclick = () => {
   const code = encodeSave(state);
   const box = document.getElementById("exportOutput");
@@ -542,6 +578,7 @@ document.getElementById("btnExport").onclick = () => {
   document.getElementById("btnCopyExport").hidden = false;
   document.getElementById("exportStatus").textContent = "Code ready. Paste it into Dijkstra Dash on another device.";
 };
+
 
 document.getElementById("btnCopyExport").onclick = async () => {
   const box = document.getElementById("exportOutput");
@@ -558,6 +595,7 @@ document.getElementById("btnCopyExport").onclick = async () => {
 
 let importArmed = false;
 let importTimer = null;
+
 document.getElementById("btnImport").onclick = () => {
   const raw = document.getElementById("importInput").value;
   const status = document.getElementById("importStatus");
@@ -602,6 +640,7 @@ const ctx = canvas.getContext("2d");
 const tip = document.getElementById("cellTip");
 const gameToast = document.getElementById("gameToast");
 
+
 function setupCanvas() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = VIEW * dpr;
@@ -639,6 +678,7 @@ let seenRouteSignatures = new Set();
 let seenMapSignatures = new Set();
 let requestCounter = 0;
 
+
 function showToast(message, ms = 2400) {
   clearTimeout(toastTimeout);
   gameToast.textContent = message;
@@ -646,15 +686,18 @@ function showToast(message, ms = 2400) {
   if (ms) toastTimeout = setTimeout(hideToast, ms);
 }
 
+
 function hideToast() {
   gameToast.classList.remove("visible");
 }
+
 
 function announce(text) {
   const el = document.getElementById("liveStatus");
   el.textContent = "";
   setTimeout(() => { el.textContent = text; }, 20);
 }
+
 
 function log(msg, cls) {
   const el = document.getElementById("log");
@@ -664,9 +707,11 @@ function log(msg, cls) {
   el.prepend(div);
 }
 
+
 function formatCost(n) {
   return Number.isFinite(n) ? String(n) : "—";
 }
+
 
 function fillRound(x, y, w, h, radius, color) {
   ctx.beginPath();
@@ -675,6 +720,7 @@ function fillRound(x, y, w, h, radius, color) {
   else ctx.rect(x, y, w, h);
   ctx.fill();
 }
+
 
 function strokeRound(x, y, w, h, radius, color, width) {
   ctx.beginPath();
@@ -685,10 +731,12 @@ function strokeRound(x, y, w, h, radius, color, width) {
   ctx.stroke();
 }
 
+
 function cellBox(r, c) {
   const g = 3.5;
   return [c * CELL + g, r * CELL + g, CELL - g * 2, CELL - g * 2];
 }
+
 
 function wrapText(text, x, y, maxWidth, lineHeight) {
   ctx.textAlign = "left";
@@ -711,6 +759,7 @@ function wrapText(text, x, y, maxWidth, lineHeight) {
   if (line && lines < 2) ctx.fillText(line, x, y);
 }
 
+
 function warehouseLayout() {
   const padX = 28;
   const gap = 14;
@@ -724,12 +773,14 @@ function warehouseLayout() {
   }));
 }
 
+
 function hitBay(x, y) {
   for (const bay of warehouseLayout()) {
     if (x >= bay.x && x <= bay.x + bay.w && y >= bay.y && y <= bay.y + bay.h) return bay.id;
   }
   return null;
 }
+
 
 function draw() {
   ctx.clearRect(0, 0, VIEW, VIEW);
@@ -739,6 +790,7 @@ function draw() {
   }
   drawGrid();
 }
+
 
 function drawWarehouse() {
   ctx.fillStyle = "#f3f0ea";
@@ -798,6 +850,7 @@ function drawWarehouse() {
   }
 }
 
+
 function drawShelf(bay, amount, cap, color) {
   const pad = 16;
   const top = bay.y + 98;
@@ -827,6 +880,7 @@ function drawShelf(bay, amount, cap, color) {
     }
   }
 }
+
 
 function drawGrid() {
   ctx.fillStyle = "#f3f0ea";
@@ -898,6 +952,7 @@ function drawGrid() {
   }
 }
 
+
 function drawExplored() {
   const settled = previewPath.length > 0 && vis.explored >= exploredCells.length && vis.path >= previewPath.length;
   if (settled) return;
@@ -912,6 +967,7 @@ function drawExplored() {
     ctx.fill();
   });
 }
+
 
 function drawRoute(path, color, width) {
   if (!path || path.length < 2) return;
@@ -929,6 +985,7 @@ function drawRoute(path, color, width) {
   ctx.stroke();
 }
 
+
 function drawTerminal(node, color, label) {
   const [x, y, w, h] = cellBox(node.r, node.c);
   fillRound(x, y, w, h, 10, color);
@@ -938,6 +995,7 @@ function drawTerminal(node, color, label) {
   ctx.textBaseline = "middle";
   ctx.fillText(label, x + w / 2, y + h / 2 + 0.5);
 }
+
 
 function drawChickenAt(x, y, scale, dir) {
   ctx.save();
@@ -1006,6 +1064,7 @@ function drawChickenAt(x, y, scale, dir) {
   ctx.restore();
 }
 
+
 function drawNext(r, c) {
   ctx.beginPath();
   ctx.strokeStyle = ACCENT;
@@ -1013,6 +1072,7 @@ function drawNext(r, c) {
   ctx.arc(c * CELL + CELL / 2, r * CELL + CELL / 2, 13, 0, Math.PI * 2);
   ctx.stroke();
 }
+
 
 function setChrome({ badge, kicker, hint, dashboard = false, planning = false, run = false, restart = false, restartLabel = "Back to warehouse" }) {
   document.getElementById("phaseBadge").textContent = badge;
@@ -1032,6 +1092,7 @@ function setChrome({ badge, kicker, hint, dashboard = false, planning = false, r
   canvas.setAttribute("aria-label", `${kicker}. ${hint}`);
 }
 
+
 function clearBoardSearch() {
   vis.token++;
   previewPath = [];
@@ -1039,6 +1100,7 @@ function clearBoardSearch() {
   vis.explored = 0;
   vis.path = 0;
 }
+
 
 function goToDashboard({ newDay = false, announceDay = false } = {}) {
   clearInterval(countdownTimer);
@@ -1076,6 +1138,7 @@ function goToDashboard({ newDay = false, announceDay = false } = {}) {
   }
 }
 
+
 function goToPlanning() {
   phase = "planning";
   startNode = { ...START_NODE };
@@ -1110,6 +1173,7 @@ function goToPlanning() {
   draw();
 }
 
+
 function canvasPoint(e) {
   const rect = canvas.getBoundingClientRect();
   return {
@@ -1117,6 +1181,7 @@ function canvasPoint(e) {
     y: (e.clientY - rect.top) * VIEW / rect.height,
   };
 }
+
 
 function cellTipText(r, c) {
   const where = `Row ${r + 1}  ·  Col ${c + 1}`;
@@ -1128,6 +1193,7 @@ function cellTipText(r, c) {
   if (trafficCells.includes(cell)) return `${where}  ·  Traffic  ·  ${cost}`;
   return `${where}  ·  ${cost}`;
 }
+
 
 function positionTip(clientX, clientY) {
   tip.hidden = false;
@@ -1224,10 +1290,12 @@ canvas.addEventListener("click", (e) => {
   draw();
 });
 
+
 function updatePlaceButtons() {
   document.getElementById("btnPlaceStart").classList.toggle("is-selected", placeMode === "start");
   document.getElementById("btnPlaceGoal").classList.toggle("is-selected", placeMode === "goal");
 }
+
 
 function setPlaceMode(mode) {
   placeMode = mode;
@@ -1240,6 +1308,7 @@ function setPlaceMode(mode) {
 document.getElementById("btnPlaceStart").onclick = () => setPlaceMode("start");
 document.getElementById("btnPlaceGoal").onclick = () => setPlaceMode("goal");
 
+
 function updateChoiceUI() {
   const ready = previewPath.length > 0;
   document.getElementById("btnLock").disabled = !ready;
@@ -1248,6 +1317,7 @@ function updateChoiceUI() {
   document.getElementById("btnPlanDijkstra").setAttribute("aria-pressed", String(ready && algoUsed === "dijkstra"));
   document.getElementById("btnPlanAstar").setAttribute("aria-pressed", String(ready && algoUsed === "astar"));
 }
+
 
 function renderPreviewStats(results, algo) {
   const stats = document.getElementById("stats");
@@ -1269,6 +1339,7 @@ function renderPreviewStats(results, algo) {
     </div>
     <p class="note">Visited is how much of the city each search opened. The cost is the route itself.</p>`;
 }
+
 
 function animateSearch() {
   const token = ++vis.token;
@@ -1301,6 +1372,7 @@ function animateSearch() {
   requestAnimationFrame(tick);
 }
 
+
 function previewRoute(algo) {
   algoUsed = algo;
   const start = { ...startNode };
@@ -1321,9 +1393,11 @@ function previewRoute(algo) {
   animateSearch();
 }
 
+
 function routeSignature(path) {
   return path.map(({ r, c }) => key(r, c)).join("|");
 }
+
 
 function mapSignature() {
   return [
@@ -1384,6 +1458,7 @@ document.getElementById("btnLock").onclick = () => {
   startRun();
 };
 
+
 function renderLiveStats() {
   const left = recalculating ? "…" : Math.max(0, plannedPath.length - 1 - segment);
   document.getElementById("stats").innerHTML = `
@@ -1394,6 +1469,7 @@ function renderLiveStats() {
       <div><dt>Steps left</dt><dd>${left}</dd></div>
     </dl>`;
 }
+
 
 function startRun() {
   phase = "running";
@@ -1460,12 +1536,14 @@ const KEY_DIR = {
   arrowright: "right", d: "right",
 };
 
+
 function flashDir(dir) {
   const btn = document.querySelector(`.stage-pad [data-dir="${dir}"]`);
   if (!btn) return;
   btn.classList.add("is-down");
   setTimeout(() => btn.classList.remove("is-down"), 120);
 }
+
 
 function tryMove(dr, dc) {
   if (phase !== "running" || !runReady || recalculating) return;
@@ -1612,6 +1690,7 @@ worker.onmessage = (e) => {
   draw();
 };
 
+
 function finishRun() {
   runReady = false;
   clearTimeout(toastTimeout);
@@ -1693,6 +1772,7 @@ document.getElementById("btnRestart").onclick = () => {
 
 let activeTab = "warehouse";
 
+
 function switchTab(tab) {
   activeTab = tab;
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
@@ -1717,15 +1797,18 @@ let focusedCity = "newyork";
 let cityBuyArmed = null;
 let cityBuyTimer = null;
 
+
 function showCities() {
   if (!state.ownedCities.includes(focusedCity)) focusedCity = state.activeCity;
   renderCities();
   drawCityMap();
 }
 
+
 function nextLockedCity() {
   return CITIES.find((city) => !state.ownedCities.includes(city.id))?.id || null;
 }
+
 
 function renderCities() {
   const list = document.getElementById("cityList");
@@ -1782,6 +1865,7 @@ function renderCities() {
   });
 }
 
+
 function buyCity(id) {
   const city = cityById(id);
   if (id !== nextLockedCity() || state.funds < city.price) return;
@@ -1813,6 +1897,7 @@ function buyCity(id) {
   showToast(`${city.name} is open`);
 }
 
+
 function driveCity(id) {
   if (!state.ownedCities.includes(id)) return;
   state.activeCity = id;
@@ -1822,6 +1907,7 @@ function driveCity(id) {
   switchTab("warehouse");
   showToast(`Driving ${cityById(id).name}`);
 }
+
 
 function roundBox(c, x, y, w, h, r) {
   c.beginPath();
@@ -1833,11 +1919,13 @@ function roundBox(c, x, y, w, h, r) {
   c.closePath();
 }
 
+
 function markFocusedCity() {
   document.querySelectorAll("#cityList .city-card").forEach((card) => {
     card.classList.toggle("is-focus", card.dataset.city === focusedCity);
   });
 }
+
 
 function fitCityPane() {
   const list = document.getElementById("cityList");
@@ -1850,6 +1938,7 @@ function fitCityPane() {
   const mapCard = document.querySelector(".map-card");
   if (mapCard) mapCard.style.height = `${height}px`;
 }
+
 
 function cityNode(index, width, height) {
   const cols = 5;
@@ -1866,6 +1955,7 @@ function cityNode(index, width, height) {
 }
 
 let mapDraw = { w: MAP_W, h: MAP_H };
+
 
 function drawCityMap() {
   const map = document.getElementById("cityMap");
