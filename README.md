@@ -102,4 +102,3 @@ The save also lives in `localStorage` under `dijkstraDash_save_v1`. **Reset prog
 | `LICENSE` | MIT |
 
 Dijkstra and A* run on the main thread for the preview. Leaving the path sends the same search to a Web Worker so the chicken can keep moving while the new line is found.
-
