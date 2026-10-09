@@ -1,186 +1,245 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Dijkstra Dash — Supply Chain Terminal</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Dijkstra Dash</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<div class="page-inner">
+  <p id="liveStatus" class="sr-only" aria-live="polite"></p>
+  <div id="cellTip" class="cell-tip" hidden></div>
 
-<h1>Dijkstra Dash — Supply Chain Terminal</h1>
-<p class="sub">Warehouse dashboard, upgrades, and a preview of future multi-city expansion.</p>
-
-<!-- ===================== Resource bar ===================== -->
-<div class="resource-bar">
-  <div class="resource-chip gold">💰 <span id="resFunds">₹0</span></div>
-  <div class="resource-chip">📅 Day <span id="resDay">1</span></div>
-  <div class="resource-chip">🏭 Lv.<span id="resLevel">1</span></div>
-  <div class="resource-chip">⚡ ₹<span id="resOpex">0</span>/day</div>
-  <div class="spacer"></div>
-</div>
-
-<div id="warehouseSection">
-<div class="layout">
-  <div class="grid-board">
-    <div class="grid-board-heading">
-      <h2>Interactive 12 × 12 City Grid</h2>
-      <span>START → DELIVERY</span>
-    </div>
-    <canvas id="canvas" width="720" height="720"></canvas>
-  </div>
-
-  <div class="panel">
-    <div id="phaseBadge" class="badge" style="background:var(--navy)">WAREHOUSE</div>
-
-    <!-- ===================== DASHBOARD ===================== -->
-    <div id="dashboardControls">
-      <h2>Warehouse Status</h2>
-      <div id="eventBanner" class="event-banner normal"></div>
-      <div class="dash-stat-row"><span>Funds</span><b id="dashFunds">₹0</b></div>
-      <div class="dash-stat-row"><span>Day</span><b id="dashDay">1</b></div>
-      <div class="dash-stat-row"><span>Warehouse Level</span><b id="dashLevel">1</b></div>
-      <div class="dash-stat-row"><span>Daily OPEX</span><b id="dashOpex">₹0/day</b></div>
-
-      <h2 style="margin-top:16px">Inventory</h2>
-      <div id="inventoryList"></div>
-
-      <h2 style="margin-top:16px">Start a Supply Run</h2>
-      <div class="instructions">Pick which raw material to gather. Higher route efficiency = more units collected.</div>
-      <button class="material-btn cream" data-material="cream">Cream <span>Run →</span></button>
-      <button class="material-btn sugar" data-material="sugar">Sugar <span>Run →</span></button>
-      <button class="material-btn dryice" data-material="dryice">Dry Ice <span>Run →</span></button>
-
-      <button id="btnResetSave">Reset Save</button>
-    </div>
-
-    <!-- ===================== PLANNING ===================== -->
-    <div id="planningControls" style="display:none">
-      <h2 id="planningHeading">1. Plan your route</h2>
-      <div class="instructions">Click any open tile to place your start. Route around walls and costly traffic to reach the goal.</div>
-      <button id="btnPlanDijkstra">Preview with Dijkstra</button>
-      <button id="btnPlanAstar">Preview with A*</button>
-      <button id="btnLock">Lock Route &amp; Start Run</button>
-      <button id="btnRandomize">Randomize Path</button>
-      <div class="search-legend">
-        <span><i class="search-swatch" style="background:#18B981"></i>Start</span>
-        <span><i class="search-swatch" style="background:#F34566"></i>Goal</span>
-        <span><i class="search-swatch" style="background:#FFD39A"></i>Traffic +5</span>
-        <span><i class="search-swatch" style="background:#87949A"></i>Wall</span>
-        <span><i class="search-swatch" style="background:#1E293B"></i>Other tiles</span>
-        <span><i class="search-swatch" style="background:#0F9B91"></i>Chosen route</span>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <h1>Dijkstra Dash</h1>
+        <p class="sub">A small route studio for an ice-cream supply run.</p>
       </div>
-    </div>
+      <dl class="metrics" aria-label="Warehouse status">
+        <div>
+          <dt>Funds</dt>
+          <dd id="resFunds">₹0</dd>
+        </div>
+        <div>
+          <dt>Day</dt>
+          <dd id="resDay">1</dd>
+        </div>
+        <div>
+          <dt>Level</dt>
+          <dd id="resLevel">1</dd>
+        </div>
+        <div>
+          <dt>Daily cost</dt>
+          <dd id="resOpex">₹0</dd>
+        </div>
+      </dl>
+    </header>
 
-    <!-- ===================== RUN ===================== -->
-    <div id="runControls" style="display:none">
-      <h2>2. Run it</h2>
-      <div class="instructions">
-        After the 3-second countdown, use the arrow keys or WASD to move one tile at a time.<br/>
-        The gold marker shows the next planned tile. Leaving the route triggers a live recalculation and traffic penalty.
-      </div>
-    </div>
+    <main>
+      <section id="warehouseSection" class="view workspace">
+        <div class="stage">
+          <div class="stage-frame">
+            <div class="stage-bar">
+              <span id="stageKicker">Floor</span>
+              <span id="stageHint">Select a bay to collect</span>
+            </div>
+            <canvas id="canvas" width="720" height="720" aria-label="Warehouse floor. Select a bay to collect."></canvas>
+          </div>
+          <div class="stage-pad" id="stagePad" hidden>
+            <button type="button" data-dir="up" aria-label="Move up">↑</button>
+            <button type="button" data-dir="left" aria-label="Move left">←</button>
+            <button type="button" data-dir="down" aria-label="Move down">↓</button>
+            <button type="button" data-dir="right" aria-label="Move right">→</button>
+          </div>
+        </div>
 
-    <div class="stats" id="stats"></div>
-    <button id="btnRestart">Back to Warehouse</button>
-    <div class="log" id="log"></div>
+        <aside class="panel">
+          <div class="panel-head">
+            <span id="phaseBadge" class="badge">Warehouse</span>
+          </div>
+
+          <div id="dashboardControls">
+            <p id="eventBanner" class="event normal">Clear roads. Normal yields today.</p>
+            <p id="bestLine" class="note" hidden></p>
+            <div class="block">
+              <h2 class="label">Storage</h2>
+              <div id="inventoryList"></div>
+              <p class="note">Click a shelf, or press 1, 2, or 3.</p>
+            </div>
+            <div class="panel-actions">
+              <button id="btnInstructions" class="linkish" type="button" aria-expanded="false">Instruction</button>
+              <button id="btnResetSave" class="linkish" type="button">Reset progress</button>
+            </div>
+            <div id="runInstructions" class="instruction" hidden>
+              <h2 class="label">How a run works</h2>
+              <ol class="steps">
+                <li><b>Pick a material</b><span>Cream, sugar, or dry ice. The chicken hauls that load.</span></li>
+                <li><b>Set both ends</b><span>Move the source and the destination, then preview Dijkstra or A*.</span></li>
+                <li><b>Steer the chicken</b><span>Arrow keys follow the line. Leaving it costs a penalty of 3, and the route is drawn again.</span></li>
+              </ol>
+            </div>
+          </div>
+
+          <div id="planningControls" hidden>
+            <h2 id="planningHeading" class="label">Plan the route</h2>
+            <p class="lede">Choose which end to move, then click an open tile. Preview a search and send the chicken.</p>
+            <div class="split gap-top">
+              <button id="btnPlaceStart" class="btn choice is-selected" type="button">Source</button>
+              <button id="btnPlaceGoal" class="btn choice" type="button">Destination</button>
+            </div>
+            <div class="stack gap-top">
+              <div class="split">
+                <button id="btnPlanDijkstra" class="btn choice" type="button" aria-pressed="false">Dijkstra</button>
+                <button id="btnPlanAstar" class="btn choice" type="button" aria-pressed="false">A*</button>
+              </div>
+              <button id="btnLock" class="btn primary" type="button" disabled>Play the route</button>
+              <button id="btnRandomize" class="btn ghost" type="button">Shuffle board</button>
+            </div>
+            <ul class="legend">
+              <li><i class="swatch start"></i>Source</li>
+              <li><i class="swatch goal"></i>Destination</li>
+              <li><i class="swatch traffic"></i>Traffic</li>
+              <li><i class="swatch wall"></i>Wall</li>
+            </ul>
+            <p class="note">Shuffle only resets the board. D or A previews. Enter plays. Esc cancels.</p>
+          </div>
+
+          <div id="runControls" hidden>
+            <h2 class="label">Chicken run</h2>
+            <p class="lede">Arrow keys, WASD, or the pad. Stay on the green line from the coop to the drop. Step off and the path is redrawn, with a penalty of 3.</p>
+          </div>
+
+          <div id="statsLogContainer">
+            <div class="stats" id="stats"></div>
+            <div class="log" id="log"></div>
+          </div>
+          <button id="btnRestart" class="btn ghost" type="button" hidden>Back to warehouse</button>
+        </aside>
+      </section>
+
+      <section id="upgradesSection" class="view" hidden>
+        <div class="page-head">
+          <p class="kicker">Capacity</p>
+          <h2>Upgrades</h2>
+          <p class="lede">A larger warehouse holds more of every material. It also costs more to keep open each day.</p>
+        </div>
+        <div class="page-grid">
+          <article class="card">
+            <div class="row-between">
+              <span>Storage level</span>
+              <b id="upLevel">1</b>
+            </div>
+            <div class="meter" aria-hidden="true"><div id="upCapacityFill"></div></div>
+            <dl class="ledger">
+              <div><dt>Capacity now</dt><dd id="upCurrentCap">10</dd></div>
+              <div><dt>Next level</dt><dd id="upNextCap">20</dd></div>
+              <div><dt>Cost</dt><dd id="upCost">₹150</dd></div>
+              <div><dt>New daily cost</dt><dd id="upNextOpex">₹28</dd></div>
+            </dl>
+            <button id="btnUpgrade2" class="btn primary gap-top" type="button">Upgrade</button>
+            <p class="note">Available <b id="upFundsAvail">₹0</b></p>
+            <p class="note">A clean run pays up to ₹100. Each time the chicken leaves the line, that route costs 3 more and the payout drops by ₹10.</p>
+          </article>
+          <article class="card">
+            <h3 class="label">Tiers</h3>
+            <div id="upgradeLadder"></div>
+          </article>
+        </div>
+        <article class="card block">
+          <h3 class="label">On the shelves now</h3>
+          <div id="upgradeStock" class="stock-grid"></div>
+        </article>
+        <div class="text-actions">
+          <button id="btnPayRules" class="linkish" type="button" aria-expanded="false">Payments Rules</button>
+        </div>
+        <article id="payRules" class="card block" hidden>
+          <h3 class="label">How a day pays</h3>
+          <div id="payBook" class="pay-grid"></div>
+        </article>
+      </section>
+
+      <section id="citiesSection" class="view" hidden>
+        <div class="page-head">
+          <p class="kicker">Network</p>
+          <h2>Cities</h2>
+          <p class="lede">Each city is the next layer. New York is open. The one after it unlocks only when you can pay for it.</p>
+        </div>
+        <div class="page-grid cities-grid">
+          <div class="map-card">
+            <canvas id="cityMap" width="1100" height="680" aria-label="Supply map. Each district is a city you can buy and drive."></canvas>
+          </div>
+          <div class="city-side" id="cityList"></div>
+        </div>
+      </section>
+
+      <section id="transferSection" class="view" hidden>
+        <div class="page-head">
+          <p class="kicker">Save file</p>
+          <h2>Transfer</h2>
+          <p class="lede">Take this warehouse to another browser with a code. No account.</p>
+        </div>
+        <div class="page-grid">
+          <article class="card">
+            <h3 class="label">This save</h3>
+            <div id="manifestBody"></div>
+          </article>
+          <div class="stack">
+            <article class="card">
+              <h3 class="label">Export</h3>
+              <p class="lede">Generate a code for the warehouse as it is right now.</p>
+              <button id="btnExport" class="btn primary gap-top" type="button">Generate code</button>
+              <textarea id="exportOutput" class="gap-top" readonly rows="4" hidden spellcheck="false"></textarea>
+              <button id="btnCopyExport" class="btn ghost gap-top" type="button" hidden>Copy code</button>
+              <p id="exportStatus" class="note"></p>
+            </article>
+            <article class="card">
+              <h3 class="label">Import</h3>
+              <p class="lede">Paste a code from another device. You confirm before it replaces this save.</p>
+              <textarea id="importInput" class="gap-top" rows="4" placeholder="Paste a code" spellcheck="false"></textarea>
+              <button id="btnImport" class="btn ghost gap-top" type="button">Restore save</button>
+              <p id="importStatus" class="note"></p>
+            </article>
+          </div>
+        </div>
+        <div class="text-actions">
+          <button id="btnTransferGuide" class="linkish" type="button" aria-expanded="false">Transfer guide</button>
+        </div>
+        <article id="transferGuide" class="card block" hidden>
+          <div class="guide-grid">
+            <div>
+              <h3 class="label">Moving a save</h3>
+              <ol class="steps">
+                <li><b>Generate</b><span>The code is this warehouse: funds, day, level, and the three shelves.</span></li>
+                <li><b>Copy</b><span>Take it to the other browser. Nothing is uploaded.</span></li>
+                <li><b>Paste and confirm</b><span>Restore asks once, then replaces the save on that device.</span></li>
+              </ol>
+            </div>
+            <div>
+              <h3 class="label">What stays behind</h3>
+              <ul class="keep-list">
+                <li><b>Today’s board</b><span>Walls, traffic, and the source you last placed are drawn fresh each visit.</span></li>
+                <li><b>A run in progress</b><span>Only a finished day is in the code. Quit first if you want that delivery counted.</span></li>
+                <li><b>Cities you bought</b><span>Owned maps and the one you are driving travel with the code.</span></li>
+              </ul>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
   </div>
-</div>
-</div><!-- /#warehouseSection -->
 
-<!-- ===================== UPGRADES TAB ===================== -->
-<div id="upgradesSection" style="display:none">
-  <div class="panel" style="max-width:520px">
-    <h2>Warehouse Upgrades</h2>
-    <div class="callout-bubble">
-      📦 Upgrade your warehouse to increase storage capacity for every material. Bigger warehouses
-      cost more to run each day (OPEX) — a real trade-off, not a pure upgrade.
-    </div>
+  <nav class="bottom-nav" aria-label="Sections">
+    <button class="nav-btn active" type="button" data-tab="warehouse">Warehouse</button>
+    <button class="nav-btn" type="button" data-tab="upgrades">Upgrades</button>
+    <button class="nav-btn" type="button" data-tab="cities">Cities</button>
+    <button class="nav-btn" type="button" data-tab="transfer">Transfer</button>
+  </nav>
 
-    <div class="upgrade-card">
-      <div class="upgrade-card-header">
-        <div class="lvl-badge">Lv.<span id="upLevel">1</span></div>
-        <div class="title">Storage Capacity</div>
-      </div>
-      <div class="capacity-track"><div class="capacity-track-fill" id="upCapacityFill" style="width:0%"></div></div>
-      <div class="cost-row"><span>Current capacity (per material)</span><b id="upCurrentCap">10</b></div>
-      <div class="cost-row"><span>Next level capacity</span><b id="upNextCap">20</b></div>
-      <div class="cost-row"><span>Upgrade cost</span><b id="upCost">₹150</b></div>
-      <div class="cost-row"><span>Daily OPEX after upgrade</span><b id="upNextOpex">₹28/day</b></div>
-      <button id="btnUpgrade2" style="background:var(--gold); color:#3a2900; margin-top:10px;">Upgrade Warehouse</button>
-    </div>
-
-    <div class="instructions">Funds available: <b id="upFundsAvail" style="color:var(--gold)">₹0</b></div>
-  </div>
-</div>
-
-<!-- ===================== CITIES TAB (concept preview) ===================== -->
-<div id="citiesSection" style="display:none">
-  <div class="panel" style="max-width:640px">
-    <h2>Choose Your City</h2>
-    <div class="callout-bubble">
-      🗺️ "Choose your first city! As your supply network grows, new cities will unlock, ready to
-      be expanded into." — this screen previews future multi-city expansion using a real map.
-    </div>
-    <div id="cityMap"></div>
-    <div class="city-name-row">
-      <span class="name">🏙️ New York — Home City</span>
-      <span>🥛 🍬 🧊</span>
-    </div>
-    <button id="btnCityComingSoon" style="background:#454d80;">Coming Soon — Multi-City Expansion</button>
-    <div class="concept-note">
-      🔒 <b>This is a visual concept preview, not a playable feature.</b> The colored overlay simulates
-      claimed vs. unclaimed supply territory — the real mechanic (isolated city economies, freight
-      links between cities) is future roadmap, scoped out of the current build on purpose to protect
-      the deadline for the core game.
-    </div>
-  </div>
-</div>
-
-<!-- ===================== TRANSFER TAB (Digital Shipping Manifesto) ===================== -->
-<div id="transferSection" style="display:none">
-  <div class="panel" style="max-width:560px">
-    <h2>Cross-Device Save Transfer</h2>
-    <div class="callout-bubble">
-      📤 The "Digital Shipping Manifesto" — export your entire warehouse state as a text code,
-      then paste it into Dijkstra Dash on another device to pick up exactly where you left off.
-      No account, no server — the code itself <i>is</i> your save.
-    </div>
-
-    <div class="upgrade-card">
-      <div class="upgrade-card-header"><div class="title">📦 Export This Save</div></div>
-      <button id="btnExport" style="background:var(--teal);">Generate Export Code</button>
-      <textarea id="exportOutput" readonly rows="4"
-        style="width:100%; resize:vertical; background:#0B0E22; color:var(--dimtext); border:1px solid var(--darkline); border-radius:6px; padding:8px; font-family:monospace; font-size:11px; display:none;"></textarea>
-      <button id="btnCopyExport" style="background:#454d80; display:none;">Copy to Clipboard</button>
-      <div id="exportStatus" class="instructions"></div>
-    </div>
-
-    <div class="upgrade-card">
-      <div class="upgrade-card-header"><div class="title">📥 Import a Save</div></div>
-      <div class="instructions" style="margin-top:0">Paste a code generated on another device. This will overwrite your current progress here.</div>
-      <textarea id="importInput" rows="4" placeholder="Paste your export code here..."
-        style="width:100%; resize:vertical; background:#0B0E22; color:white; border:1px solid var(--darkline); border-radius:6px; padding:8px; font-family:monospace; font-size:11px; margin-bottom:10px;"></textarea>
-      <button id="btnImport" style="background:var(--gold); color:#3a2900;">Load This Save</button>
-      <div id="importStatus" class="instructions"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ===================== BOTTOM NAV ===================== -->
-<div class="bottom-nav">
-  <button class="nav-btn active" data-tab="warehouse"><span class="nav-icon">🏠</span>Warehouse</button>
-  <button class="nav-btn" data-tab="upgrades"><span class="nav-icon">📦</span>Upgrades</button>
-  <button class="nav-btn" data-tab="cities"><span class="nav-icon">🗺️</span>Cities</button>
-  <button class="nav-btn" data-tab="transfer"><span class="nav-icon">📤</span>Transfer</button>
-</div>
-
-</div><!-- /.page-inner -->
-
-<div id="gameToast" class="game-toast" role="status" aria-live="polite"></div>
-
-<script src="script.js"></script>
+  <div id="gameToast" class="game-toast" role="status"></div>
+  <script src="script.js"></script>
 </body>
 </html>
